@@ -1,0 +1,701 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0b12">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="VIBE">
+<title>vibe</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg:#0b0b12; --card:#161622; --card2:#222234; --text:#fff; --muted:#8b8ba3;
+    --pink:#ff4ecd; --purple:#7c3aed; --cyan:#22d3ee; --green:#22c55e; --red:#ef4444;
+    --grad:linear-gradient(135deg,#ff4ecd,#7c3aed 60%,#22d3ee);
+    --bubble:linear-gradient(135deg,#7c3aed,#ec4899);
+  }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--text);
+    font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif; }
+  #app { max-width:480px; margin:0 auto; height:100dvh; display:flex; flex-direction:column; position:relative; overflow:hidden; }
+  .screen { display:none; flex:1; flex-direction:column; min-height:0; }
+  .screen.on { display:flex; }
+  .pad { padding:28px 18px; overflow-y:auto; }
+  h1 { font-size:30px; font-weight:900; margin:0 0 4px; letter-spacing:-.5px; }
+  .grad-text { background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  h2 { font-size:12px; text-transform:uppercase; letter-spacing:.12em; color:var(--muted); margin:26px 0 8px; font-weight:700; }
+  p.sub { color:var(--muted); margin:0 0 18px; font-size:15px; }
+  input { width:100%; padding:14px 16px; margin:6px 0; border:2px solid transparent; border-radius:16px; background:var(--card2); color:var(--text); font-size:16px; outline:none; }
+  input:focus { border-color:var(--purple); }
+  input::placeholder { color:var(--muted); }
+  button { font:inherit; border:0; cursor:pointer; color:var(--text); }
+  .btn { width:100%; margin-top:10px; padding:15px; border-radius:16px; background:var(--grad); font-weight:800; font-size:16px; }
+  .btn.ghost { background:var(--card2); color:var(--muted); font-weight:700; }
+  .btn:active, .row:active, .icon:active, .emo:active { transform:scale(.97); }
+  .err { color:#ff6b81; font-size:14px; min-height:20px; margin-top:8px; }
+  .av { border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:800; color:#fff; flex:none; }
+  .row { display:flex; align-items:center; gap:12px; width:100%; text-align:left; background:var(--card); border-radius:18px; padding:12px 14px; margin:8px 0; font-weight:700; }
+  .row .rname { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .row .dot { display:none; width:10px; height:10px; border-radius:50%; background:var(--green); box-shadow:0 0 10px var(--green); }
+  .row.online .dot { display:block; }
+  .row .unread { display:none; width:12px; height:12px; border-radius:50%; background:#3b82f6; box-shadow:0 0 10px #3b82f6; flex:none; }
+  .row.hasnew .unread { display:block; }
+  .row .seentxt { display:none; font-size:12px; font-weight:600; color:var(--muted); flex:none; }
+  .row.seenin .seentxt { display:block; }
+  .hero { display:flex; align-items:center; gap:14px; width:100%; text-align:left; background:var(--grad); border-radius:22px; padding:18px; margin:6px 0; }
+  .hero .big { font-size:34px; }
+  .hero b { display:block; font-size:18px; font-weight:900; }
+  .hero span { font-size:13px; opacity:.9; }
+  .muted { color:var(--muted); font-size:14px; }
+  header { display:flex; align-items:center; gap:10px; padding:10px 12px; background:var(--card); }
+  header .hmid { flex:1; min-width:0; }
+  header .title { font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  header .status { font-size:12px; color:var(--muted); }
+  header .status.on { color:var(--green); }
+  .icon { width:42px; height:42px; border-radius:50%; background:var(--card2); font-size:19px; display:flex; align-items:center; justify-content:center; flex:none; }
+  #msgs { flex:1; overflow-y:auto; padding:14px; display:flex; flex-direction:column; gap:6px; }
+  .bubble { max-width:80%; padding:10px 14px; border-radius:22px; word-wrap:break-word; white-space:pre-wrap; }
+  .bubble.me { align-self:flex-end; background:var(--bubble); border-bottom-right-radius:6px; }
+  .bubble.them { align-self:flex-start; background:var(--card2); border-bottom-left-radius:6px; }
+  .bubble.bigemo { font-size:40px; padding:4px 12px; background:transparent; }
+  .who { display:block; font-size:12px; font-weight:800; margin-bottom:2px; color:var(--cyan); }
+  .empty { color:var(--muted); text-align:center; margin-top:50px; font-size:15px; }
+  .emos { display:flex; gap:8px; padding:8px 12px 0; background:var(--card); overflow-x:auto; }
+  .emo { background:var(--card2); border-radius:14px; padding:6px 12px; font-size:20px; flex:none; }
+  form.send { display:flex; gap:8px; padding:10px 12px calc(10px + env(safe-area-inset-bottom)); background:var(--card); }
+  form.send input { margin:0; flex:1; border-radius:22px; }
+  form.send button { padding:0 20px; border-radius:22px; background:var(--grad); font-weight:800; }
+
+  /* incoming call + call screen */
+  .overlay { position:absolute; inset:0; z-index:50; display:none; flex-direction:column; align-items:center; justify-content:center; text-align:center; background:radial-gradient(circle at 50% 30%,#2a1458,#0b0b12 70%); padding:24px; }
+  .overlay.on { display:flex; }
+  .overlay h3 { font-size:28px; margin:18px 0 4px; font-weight:900; }
+  .overlay .sub2 { color:var(--muted); margin-bottom:40px; }
+  .pulse { border-radius:50%; animation:pulse 1.6s infinite; }
+  @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(255,78,205,.55)} 100%{box-shadow:0 0 0 40px rgba(255,78,205,0)} }
+  .callbtns { display:flex; gap:28px; }
+  .cbtn { width:72px; height:72px; border-radius:50%; font-size:30px; display:flex; align-items:center; justify-content:center; }
+  .cbtn.accept { background:var(--green); } .cbtn.decline { background:var(--red); }
+  #s-call { background:#000; justify-content:flex-end; padding:0; }
+  #remote { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; background:#000; }
+  #s-call.audio-only #remote { opacity:0; width:1px; height:1px; }
+  #s-call.audio-only { background:radial-gradient(circle at 50% 30%,#2a1458,#0b0b12 70%); }
+  #local { position:absolute; top:16px; right:16px; width:96px; height:136px; object-fit:cover; border-radius:16px; border:2px solid rgba(255,255,255,.4); background:#222; z-index:2; transform:scaleX(-1); }
+  #s-call.audio-only #local { display:none; }
+  .callinfo { position:absolute; top:0; left:0; right:0; bottom:140px; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:1; pointer-events:none; text-shadow:0 2px 12px rgba(0,0,0,.6); }
+  #s-call:not(.audio-only) .callinfo { justify-content:flex-start; padding-top:30px; align-items:flex-start; padding-left:18px; }
+  #s-call:not(.audio-only) .callinfo .av { display:none; }
+  .callinfo h3 { font-size:26px; margin:14px 0 2px; font-weight:900; }
+  .ctrls { position:relative; z-index:3; display:flex; justify-content:center; gap:22px; padding:20px 0 calc(34px + env(safe-area-inset-bottom)); }
+  .ctrls .cbtn { background:rgba(255,255,255,.18); backdrop-filter:blur(8px); }
+  .ctrls .cbtn.off { background:#fff; color:#000; }
+  .ctrls .cbtn.end { background:var(--red); }
+  #toast { position:absolute; left:50%; top:16px; transform:translate(-50%,-80px); background:var(--card2); padding:10px 18px; border-radius:20px; font-weight:700; z-index:100; transition:transform .25s; max-width:90%; text-align:center; }
+  #toast.on { transform:translate(-50%,0); }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="toast"></div>
+
+  <!-- sign in -->
+  <div id="s-auth" class="screen pad">
+    <h1 class="grad-text">vibe ✨</h1>
+    <p class="sub">pick a username and you're in. no email, no stress.</p>
+    <input id="auth-user" placeholder="username" autocapitalize="off" autocorrect="off" autocomplete="username">
+    <input id="auth-pass" type="password" placeholder="password (6+ characters)" autocomplete="current-password">
+    <button class="btn" id="auth-in">sign in</button>
+    <button class="btn ghost" id="auth-up">new here? make an account</button>
+    <div class="err" id="auth-err"></div>
+  </div>
+
+  <!-- home -->
+  <div id="s-home" class="screen pad">
+    <h1 id="home-me"></h1>
+    <p class="sub">talk to everyone or slide into someone's dms 👀</p>
+    <button class="hero" id="go-group">
+      <span class="big">🌍</span>
+      <div><b>the big group chat</b><span>everyone's in here. say something.</span></div>
+    </button>
+
+    <h2>find someone</h2>
+    <input id="search" placeholder="search usernames" autocapitalize="off" autocorrect="off">
+    <div id="results"></div>
+
+    <h2>your dms</h2>
+    <div id="recent"><div class="muted">nothing yet. find someone above ☝️</div></div>
+
+    <button class="btn" id="enable-push" style="display:none">🔔 turn on notifications</button>
+    <button class="btn ghost" id="signout">sign out</button>
+  </div>
+
+  <!-- chat -->
+  <div id="s-chat" class="screen">
+    <header>
+      <button class="icon" id="back">←</button>
+      <div id="chat-av"></div>
+      <div class="hmid"><div class="title" id="chat-title"></div><div class="status" id="chat-status"></div></div>
+      <button class="icon" id="call-voice" title="Voice call">📞</button>
+      <button class="icon" id="call-video" title="Video call">🎥</button>
+    </header>
+    <div id="msgs"></div>
+    <div class="emos" id="emos"></div>
+    <form class="send" id="send-form">
+      <input id="msg-input" placeholder="say something…" autocomplete="off" maxlength="2000">
+      <button type="submit">send</button>
+    </form>
+  </div>
+
+  <!-- active call -->
+  <div id="s-call" class="overlay">
+    <video id="remote" autoplay playsinline></video>
+    <video id="local" autoplay playsinline muted></video>
+    <div class="callinfo">
+      <div id="call-av"></div>
+      <h3 id="call-name"></h3>
+      <div id="call-status" class="muted"></div>
+    </div>
+    <div class="ctrls">
+      <button class="cbtn" id="btn-mute" title="Mute">🎤</button>
+      <button class="cbtn" id="btn-cam" title="Camera">📷</button>
+      <button class="cbtn end" id="btn-end" title="Hang up">📵</button>
+    </div>
+  </div>
+
+  <!-- incoming call -->
+  <div id="incoming" class="overlay">
+    <div id="inc-av" class="pulse"></div>
+    <h3 id="inc-name"></h3>
+    <div class="sub2" id="inc-type"></div>
+    <div class="callbtns">
+      <button class="cbtn decline" id="inc-decline">✖</button>
+      <button class="cbtn accept" id="inc-accept">📞</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const screens = ['auth','home','chat'];
+
+// =====================================================
+// Your Supabase values (the anon key is meant to be public)
+// =====================================================
+const SUPABASE_URL = 'https://znetcidwdiebiefodlhq.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpuZXRjaWR3ZGllYmllZm9kbGhxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQxNzk4NDAsImV4cCI6MjEwOTc1NTg0MH0.3ESgEb3VYdeZZ2axNKHcfA99VAfKc3Lk5omnRAzE1hU';
+
+// Usernames become a hidden email behind the scenes.
+const EMAIL_DOMAIN = '@mychat-app.com';
+
+function show(name){ screens.forEach(s => $('s-'+s).classList.toggle('on', s===name)); }
+
+let sb = null, me = null, target = null, channel = null, booted = false;
+let presenceChannel = null, myCallChan = null, sigChans = {};
+let online = new Set();
+const seen = new Set();
+const names = {};
+// unread / seen tracking (stored on this phone)
+let latestIn = {};   // uid -> time of newest message they sent me
+let lastSeen = {};   // uid -> time of newest message from them I have read
+function seenKey(){ return 'vibe_seen_' + (me ? me.id : ''); }
+let baseline = false;
+function loadSeen(){ try { baseline = localStorage.getItem(seenKey()) === null; } catch (e) {} try { lastSeen = JSON.parse(localStorage.getItem(seenKey()) || '{}'); } catch (e) { lastSeen = {}; } }
+function saveSeen(){ try { localStorage.setItem(seenKey(), JSON.stringify(lastSeen)); } catch (e) {} }
+function noteIncoming(uid, iso){
+  const t = new Date(iso).getTime() || 0;
+  if (t > (latestIn[uid] || 0)) latestIn[uid] = t;
+}
+function markSeen(uid, iso){
+  const t = new Date(iso).getTime() || 0;
+  noteIncoming(uid, iso);
+  if (t > (lastSeen[uid] || 0)) { lastSeen[uid] = t; saveSeen(); }
+  updateBadges();
+}
+function updateBadges(){
+  document.querySelectorAll('.row[data-uid]').forEach(el => {
+    const uid = el.dataset.uid, got = latestIn[uid] || 0;
+    const unread = got > (lastSeen[uid] || 0);
+    el.classList.toggle('hasnew', unread);
+    el.classList.toggle('seenin', !!got && !unread);
+  });
+}
+
+// ---------- small helpers ----------
+const GRADS = [
+  'linear-gradient(135deg,#ff4ecd,#7c3aed)', 'linear-gradient(135deg,#22d3ee,#7c3aed)',
+  'linear-gradient(135deg,#f97316,#ec4899)', 'linear-gradient(135deg,#22c55e,#22d3ee)',
+  'linear-gradient(135deg,#facc15,#f97316)', 'linear-gradient(135deg,#a78bfa,#f472b6)'
+];
+function hash(s){ let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; }
+function avatar(name, size, emoji){
+  const d = document.createElement('div');
+  d.className = 'av';
+  d.style.width = d.style.height = size + 'px';
+  d.style.fontSize = Math.round(size * 0.45) + 'px';
+  d.style.background = GRADS[hash(name || '?') % GRADS.length];
+  d.textContent = emoji || (name || '?')[0].toUpperCase();
+  return d;
+}
+function toast(t){
+  const el = $('toast'); el.textContent = t; el.classList.add('on');
+  clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), 2800);
+}
+function isOnlyEmoji(s){ return s.length <= 8 && !/[A-Za-z0-9]/.test(s) && /\p{Extended_Pictographic}/u.test(s); }
+
+function connect(url, key){ sb = supabase.createClient(url, key); }
+
+// ---------- push notifications (web push) ----------
+const VAPID_PUBLIC = 'BHXPn9r7Q-KZwtxLPV-13valsLWo7mqu2kdjcjqifRvN6DvpQr9Y2vHojf2HeBlbnF0pIyrlb8WtEghVPHTSlcQ';
+const isWebView = /; wv\)/.test(navigator.userAgent);   // the old APK: no web push there
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+function b64ToU8(b){ const p = '='.repeat((4 - b.length % 4) % 4); const r = atob((b + p).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(r, c => c.charCodeAt(0)); }
+if ('serviceWorker' in navigator && !isWebView) navigator.serviceWorker.register('sw.js').catch(() => {});
+
+function pushReady(){ return !isWebView && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window; }
+function refreshPushBtn(){
+  const b = $('enable-push'); if (!b) return;
+  const on = window.Notification && Notification.permission === 'granted';
+  b.style.display = (!isWebView && !on) ? '' : 'none';
+}
+async function savePushSub(){
+  const reg = await navigator.serviceWorker.ready;
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToU8(VAPID_PUBLIC) });
+  const j = sub.toJSON();
+  await sb.rpc('save_push_subscription', { p_endpoint: j.endpoint, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth });
+}
+async function enablePush(){
+  if (!pushReady()) {
+    toast(isIOS && !isStandalone ? 'on iPhone: tap Share, then Add to Home Screen, then open VIBE from there 📲' : 'this browser cannot do notifications');
+    return;
+  }
+  try {
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') { toast('notifications are blocked. allow them in your browser settings for this site'); refreshPushBtn(); return; }
+    await savePushSub();
+    toast('notifications are on 🔔');
+  } catch (e) { toast('could not turn on notifications: ' + ((e && e.message) || e)); }
+  refreshPushBtn();
+}
+async function syncPush(){   // keep this phone attached to whoever is logged in
+  try { if (pushReady() && Notification.permission === 'granted') await savePushSub(); } catch (e) {}
+  refreshPushBtn();
+}
+async function dropPushSub(){
+  try {
+    if (!pushReady()) return;
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (sub) await sb.rpc('delete_push_subscription', { p_endpoint: sub.endpoint });
+  } catch (e) {}
+}
+
+// ---------- auth ----------
+function cleanUsername(){
+  const u = $('auth-user').value.trim().toLowerCase();
+  if (!/^[a-z0-9_]{3,20}$/.test(u)) { $('auth-err').textContent = 'username must be 3-20 letters, numbers, or underscores.'; return null; }
+  return u;
+}
+async function doAuth(signup){
+  $('auth-err').textContent = '';
+  const u = cleanUsername(); if (!u) return;
+  const password = $('auth-pass').value;
+  if (password.length < 6) { $('auth-err').textContent = 'password needs 6+ characters.'; return; }
+  const email = u + EMAIL_DOMAIN;
+  const res = signup
+    ? await sb.auth.signUp({ email, password, options: { data: { username: u } } })
+    : await sb.auth.signInWithPassword({ email, password });
+  if (res.error) {
+    const msg = res.error.message || '';
+    $('auth-err').textContent = /database error/i.test(msg) ? 'that username is taken. try another.'
+      : /invalid login/i.test(msg) ? 'wrong username or password.' : msg;
+    return;
+  }
+  if (!res.data.session) { $('auth-err').textContent = 'Account created, but email confirmation is still on in Supabase. Turn it off, then sign in.'; return; }
+  await loadMe(res.data.user);
+}
+$('auth-in').onclick = () => doAuth(false);
+$('auth-up').onclick = () => doAuth(true);
+$('enable-push').onclick = enablePush;
+$('signout').onclick = async () => {
+  if (call) endCall();
+  incoming = null; $('incoming').classList.remove('on');
+  await dropPushSub();
+  await sb.auth.signOut(); await sb.removeAllChannels();
+  channel = presenceChannel = myCallChan = inboxChan = null; sigChans = {}; booted = false; online = new Set();
+  me = null; show('auth');
+};
+
+async function loadMe(user){
+  const { data } = await sb.from('profiles').select('id,username').eq('id', user.id).maybeSingle();
+  me = { id: user.id, username: data ? data.username : (user.user_metadata && user.user_metadata.username) || 'me' };
+  names[me.id] = me.username;
+  syncPush();
+  loadSeen(); latestIn = {};
+  if (!booted) { booted = true; setupPresence(); setupCalls(); setupInbox(); }
+  goHome();
+}
+
+// ---------- new-message watcher (powers the blue dot) ----------
+let inboxChan = null;
+function setupInbox(){
+  inboxChan = sb.channel('inbox-' + me.id)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
+      const r = payload.new;
+      if (!r || r.receiver !== me.id) return;
+      if (target && target.id === r.sender && $('s-chat').classList.contains('on')) { markSeen(r.sender, r.created_at); return; }
+      noteIncoming(r.sender, r.created_at);
+      if ($('s-home').classList.contains('on') && !document.querySelector('#recent .row[data-uid="' + r.sender + '"]')) loadRecent();
+      else updateBadges();
+    }).subscribe();
+}
+
+// ---------- who's online ----------
+function setupPresence(){
+  presenceChannel = sb.channel('online', { config: { presence: { key: me.id } } });
+  presenceChannel.on('presence', { event: 'sync' }, () => {
+    online = new Set(Object.keys(presenceChannel.presenceState()));
+    refreshOnline();
+  }).subscribe(async s => { if (s === 'SUBSCRIBED') await presenceChannel.track({ u: me.username }); });
+}
+function refreshOnline(){
+  document.querySelectorAll('[data-uid]').forEach(el => el.classList.toggle('online', online.has(el.dataset.uid)));
+  if (target) {
+    const on = online.has(target.id);
+    $('chat-status').textContent = on ? 'online now' : 'offline';
+    $('chat-status').classList.toggle('on', on);
+  }
+}
+
+// ---------- home ----------
+async function goHome(){
+  if (channel) { sb.removeChannel(channel); channel = null; }
+  $('home-me').innerHTML = '';
+  const hi = document.createElement('span'); hi.className = 'grad-text'; hi.textContent = 'hey ' + me.username + ' 👋';
+  $('home-me').appendChild(hi);
+  $('search').value = ''; $('results').innerHTML = '';
+  target = null;
+  show('home');
+  loadRecent();
+}
+
+function userRow(u){
+  const b = document.createElement('button');
+  b.className = 'row'; b.dataset.uid = u.id;
+  const n = document.createElement('span'); n.className = 'rname'; n.textContent = u.username;
+  const dot = document.createElement('span'); dot.className = 'dot';
+  const st = document.createElement('span'); st.className = 'seentxt'; st.textContent = 'Seen';
+  const ub = document.createElement('span'); ub.className = 'unread';
+  b.append(avatar(u.username, 40), n, st, ub, dot);
+  b.classList.toggle('online', online.has(u.id));
+  { const got = latestIn[u.id] || 0, un = got > (lastSeen[u.id] || 0); b.classList.toggle('hasnew', un); b.classList.toggle('seenin', !!got && !un); }
+  b.onclick = () => openChat(u);
+  return b;
+}
+
+let searchTimer = null;
+$('search').addEventListener('input', () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(async () => {
+    const q = $('search').value.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
+    const box = $('results'); box.innerHTML = '';
+    if (!q) return;
+    const { data, error } = await sb.from('profiles').select('id,username').ilike('username', q + '%').neq('id', me.id).order('username').limit(10);
+    if (error) { box.textContent = error.message; return; }
+    if (!data.length) { const d = document.createElement('div'); d.className = 'muted'; d.textContent = 'nobody with that name 🫥'; box.appendChild(d); return; }
+    data.forEach(u => { names[u.id] = u.username; box.appendChild(userRow(u)); });
+  }, 250);
+});
+
+async function loadRecent(){
+  const box = $('recent');
+  const { data } = await sb.from('messages').select('sender,receiver,created_at')
+    .not('receiver', 'is', null).order('created_at', { ascending: false }).limit(200);
+  const ids = [];
+  (data || []).forEach(m => { if (m.sender !== me.id) noteIncoming(m.sender, m.created_at); });
+  if (baseline) { baseline = false; Object.assign(lastSeen, latestIn); saveSeen(); }
+  (data || []).forEach(m => { const o = m.sender === me.id ? m.receiver : m.sender; if (!ids.includes(o)) ids.push(o); });
+  box.innerHTML = '';
+  if (!ids.length) { const d = document.createElement('div'); d.className = 'muted'; d.textContent = 'nothing yet. find someone above ☝️'; box.appendChild(d); return; }
+  const { data: profs } = await sb.from('profiles').select('id,username').in('id', ids);
+  const byId = {}; (profs || []).forEach(p => { byId[p.id] = p; names[p.id] = p.username; });
+  ids.forEach(id => { if (byId[id]) box.appendChild(userRow(byId[id])); });
+  updateBadges();
+}
+$('go-group').onclick = () => openChat(null);
+
+// ---------- chat ----------
+async function nameFor(id){
+  if (names[id]) return names[id];
+  const { data } = await sb.from('profiles').select('id,username').eq('id', id).maybeSingle();
+  names[id] = data ? data.username : 'unknown';
+  return names[id];
+}
+
+async function addBubble(m){
+  if (seen.has(m.id)) return; seen.add(m.id);
+  const box = $('msgs');
+  const empty = box.querySelector('.empty'); if (empty) empty.remove();
+  const mine = m.sender === me.id;
+  const d = document.createElement('div');
+  d.className = 'bubble ' + (mine ? 'me' : 'them') + (isOnlyEmoji(m.body) ? ' bigemo' : '');
+  if (!target && !mine) {
+    const w = document.createElement('span'); w.className = 'who'; w.textContent = await nameFor(m.sender);
+    d.appendChild(w);
+  }
+  d.appendChild(document.createTextNode(m.body));
+  box.appendChild(d);
+  box.scrollTop = box.scrollHeight;
+  if (!mine && target && m.sender === target.id) markSeen(m.sender, m.created_at);
+}
+
+async function openChat(u){
+  target = u; seen.clear();
+  $('chat-title').textContent = u ? u.username : 'the big group chat';
+  $('chat-av').replaceChildren(u ? avatar(u.username, 40) : avatar('group', 40, '🌍'));
+  $('call-voice').style.display = $('call-video').style.display = u ? '' : 'none';
+  if (u) refreshOnline(); else { $('chat-status').textContent = 'everyone'; $('chat-status').classList.remove('on'); }
+  $('msgs').innerHTML = '';
+  show('chat');
+
+  let q = sb.from('messages').select('*');
+  if (u) q = q.or(`and(sender.eq.${me.id},receiver.eq.${u.id}),and(sender.eq.${u.id},receiver.eq.${me.id})`);
+  else q = q.is('receiver', null);
+  const { data, error } = await q.order('created_at', { ascending: false }).limit(200);
+  if (error) { const d = document.createElement('div'); d.className = 'empty'; d.textContent = error.message; $('msgs').appendChild(d); return; }
+  const rows = data.reverse();
+  if (!rows.length) { const d = document.createElement('div'); d.className = 'empty'; d.textContent = "it's quiet in here… say hi 👀"; $('msgs').appendChild(d); }
+  for (const m of rows) await addBubble(m);
+
+  if (channel) { sb.removeChannel(channel); channel = null; }
+  channel = sb.channel('chat-' + Date.now())
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
+      const r = payload.new;
+      const belongs = target
+        ? ((r.sender === me.id && r.receiver === target.id) || (r.sender === target.id && r.receiver === me.id))
+        : r.receiver === null;
+      if (belongs) addBubble(r);
+    })
+    .subscribe();
+}
+$('back').onclick = () => goHome();
+
+async function sendMsg(body){
+  body = (body || '').trim(); if (!body) return false;
+  const { data, error } = await sb.from('messages').insert({ receiver: target ? target.id : null, body }).select().single();
+  if (error) { toast('could not send: ' + error.message); return false; }
+  addBubble(data); return true;
+}
+$('send-form').onsubmit = async e => {
+  e.preventDefault();
+  const input = $('msg-input'), body = input.value;
+  input.value = '';
+  if (!(await sendMsg(body))) input.value = body;
+};
+['😂','💀','🔥','😭','❤️','👀','🫡','✨'].forEach(em => {
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'emo'; b.textContent = em;
+  b.onclick = () => sendMsg(em);
+  $('emos').appendChild(b);
+});
+
+// =====================================================
+//  CALLS (voice + video, peer-to-peer via WebRTC)
+//  Supabase Realtime is only used to pass the "hello" notes
+//  that let two phones find each other.
+// =====================================================
+const ICE = { iceServers: [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }] };
+let call = null;       // the active call, if any
+let incoming = null;   // a ringing call, if any
+
+function setupCalls(){
+  myCallChan = sb.channel('calls:' + me.id);
+  ['invite','accept','decline','busy','offer','answer','ice','hangup'].forEach(ev =>
+    myCallChan.on('broadcast', { event: ev }, msg => onSignal(ev, msg.payload || {}))
+  );
+  myCallChan.subscribe();
+}
+
+async function sendSignal(toId, event, payload){
+  let ch = sigChans[toId];
+  if (!ch) {
+    ch = sb.channel('calls:' + toId);
+    sigChans[toId] = ch;
+    ch.ready = new Promise(res => ch.subscribe(s => { if (s === 'SUBSCRIBED') res(); }));
+  }
+  await ch.ready;
+  ch.send({ type: 'broadcast', event, payload: Object.assign({}, payload, { from: me.id, name: me.username }) });
+}
+
+async function getMedia(video){
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { toast('calls need https and a modern browser'); return null; }
+  try { return await navigator.mediaDevices.getUserMedia({ audio: true, video: video ? { facingMode: 'user' } : false }); }
+  catch (e) {
+    const n = (e && e.name) || '';
+    if (n === 'NotAllowedError' || n === 'SecurityError') toast('mic' + (video ? '/camera' : '') + ' is blocked. Android Settings > Apps > VIBE > Permissions > allow Microphone' + (video ? ' + Camera' : '') + ' 🎙️');
+    else if (n === 'NotFoundError') toast('no ' + (video ? 'camera or ' : '') + 'mic found on this phone');
+    else if (n === 'NotReadableError') toast('mic' + (video ? '/camera' : '') + ' is being used by another app');
+    else toast('could not start the call (' + (n || 'unknown error') + ')');
+    return null;
+  }
+}
+
+function makePC(c){
+  const pc = new RTCPeerConnection(ICE);
+  c.stream.getTracks().forEach(t => pc.addTrack(t, c.stream));
+  pc.onicecandidate = e => { if (e.candidate) sendSignal(c.peer.id, 'ice', { candidate: e.candidate.toJSON() }); };
+  pc.ontrack = e => { $('remote').srcObject = e.streams[0]; $('remote').play().catch(() => {}); };
+  pc.onconnectionstatechange = () => {
+    if (call !== c) return;
+    if (pc.connectionState === 'connected' && !c.connected) {
+      c.connected = true; clearTimeout(c.timer); c.started = Date.now();
+      c.tick = setInterval(() => {
+        const s = Math.floor((Date.now() - c.started) / 1000);
+        $('call-status').textContent = String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+      }, 500);
+    }
+    if (pc.connectionState === 'failed') { sendSignal(c.peer.id, 'hangup'); endCall("couldn't connect 😕 (some networks block calls)"); }
+  };
+  return pc;
+}
+
+async function missedCall(peer, video){
+  try { await sb.from('messages').insert({ receiver: peer.id, body: (video ? '🎥 missed video call' : '📞 missed voice call') }); } catch (e) {}
+}
+function openCallUI(c, status){
+  const s = $('s-call');
+  s.classList.toggle('audio-only', !c.video);
+  $('call-av').replaceChildren(avatar(c.peer.username, 110));
+  $('call-name').textContent = c.peer.username;
+  $('call-status').textContent = status;
+  $('local').srcObject = c.video ? c.stream : null;
+  $('btn-cam').style.display = c.video ? '' : 'none';
+  $('btn-mute').classList.remove('off'); $('btn-cam').classList.remove('off');
+  $('btn-mute').textContent = '🎤'; $('btn-cam').textContent = '📷';
+  s.classList.add('on');
+}
+
+async function startCall(video){
+  if (call || incoming || !target) return;
+  const peer = target;
+  const stream = await getMedia(video); if (!stream) return;
+  call = { peer, video, stream, role: 'caller', pc: null, pendingIce: [], connected: false };
+  openCallUI(call, 'calling…');
+  sendSignal(peer.id, 'invite', { video });
+  try { sb.functions.invoke('send-web-push', { body: { call_to: peer.id, video } }); } catch (e) {}
+  const c = call;
+  c.timer = setTimeout(() => { if (call === c && !c.connected) { sendSignal(peer.id, 'hangup'); missedCall(peer, video); endCall('no answer 😶'); } }, 35000);
+}
+$('call-voice').onclick = () => startCall(false);
+$('call-video').onclick = () => startCall(true);
+
+function showIncoming(){
+  $('inc-av').replaceChildren(avatar(incoming.peer.username, 120));
+  $('inc-name').textContent = incoming.peer.username;
+  $('inc-type').textContent = incoming.video ? 'is video calling you…' : 'is calling you…';
+  $('incoming').classList.add('on');
+  if (navigator.vibrate) navigator.vibrate([300, 150, 300, 150, 300]);
+  const inc = incoming;
+  inc.timer = setTimeout(() => { if (incoming === inc) clearIncoming('missed call from ' + inc.peer.username); }, 40000);
+}
+function clearIncoming(msg){
+  if (incoming) clearTimeout(incoming.timer);
+  incoming = null; $('incoming').classList.remove('on');
+  if (msg) toast(msg);
+}
+
+$('inc-decline').onclick = () => { if (!incoming) return; sendSignal(incoming.peer.id, 'decline'); clearIncoming(); };
+$('inc-accept').onclick = async () => {
+  if (!incoming) return;
+  const inc = incoming;
+  const stream = await getMedia(inc.video);
+  if (!stream) { sendSignal(inc.peer.id, 'decline'); clearIncoming(); return; }
+  clearIncoming();
+  call = { peer: inc.peer, video: inc.video, stream, role: 'callee', pc: null, pendingIce: [], connected: false };
+  call.pc = makePC(call);
+  openCallUI(call, 'connecting…');
+  sendSignal(inc.peer.id, 'accept');
+};
+
+async function flushIce(c){
+  while (c.pendingIce.length) { try { await c.pc.addIceCandidate(c.pendingIce.shift()); } catch (e) {} }
+}
+
+async function onSignal(ev, p){
+  try {
+    if (ev === 'invite') {
+      if (call || incoming) { sendSignal(p.from, 'busy'); return; }
+      incoming = { peer: { id: p.from, username: p.name || 'someone' }, video: !!p.video };
+      showIncoming(); return;
+    }
+    if (ev === 'hangup' && incoming && incoming.peer.id === p.from) { clearIncoming('missed call from ' + incoming.peer.username); return; }
+    if (!call || call.peer.id !== p.from) return;
+    const c = call;
+    if (ev === 'accept' && c.role === 'caller' && !c.pc) {
+      c.pc = makePC(c);
+      $('call-status').textContent = 'connecting…';
+      const offer = await c.pc.createOffer();
+      await c.pc.setLocalDescription(offer);
+      sendSignal(c.peer.id, 'offer', { sdp: { type: offer.type, sdp: offer.sdp } });
+    } else if (ev === 'offer' && c.role === 'callee' && c.pc) {
+      await c.pc.setRemoteDescription(p.sdp);
+      await flushIce(c);
+      const answer = await c.pc.createAnswer();
+      await c.pc.setLocalDescription(answer);
+      sendSignal(c.peer.id, 'answer', { sdp: { type: answer.type, sdp: answer.sdp } });
+    } else if (ev === 'answer' && c.role === 'caller' && c.pc) {
+      await c.pc.setRemoteDescription(p.sdp);
+      await flushIce(c);
+    } else if (ev === 'ice') {
+      if (c.pc && c.pc.remoteDescription) { try { await c.pc.addIceCandidate(p.candidate); } catch (e) {} }
+      else c.pendingIce.push(p.candidate);
+    } else if (ev === 'decline') { endCall(c.peer.username + ' declined ✋'); }
+    else if (ev === 'busy') { endCall(c.peer.username + ' is on another call'); }
+    else if (ev === 'hangup') { endCall('call ended'); }
+  } catch (e) { console.error(e); }
+}
+
+function endCall(msg){
+  const c = call; if (!c) return;
+  call = null;
+  clearTimeout(c.timer); clearInterval(c.tick);
+  try { if (c.pc) c.pc.close(); } catch (e) {}
+  c.stream.getTracks().forEach(t => t.stop());
+  $('remote').srcObject = null; $('local').srcObject = null;
+  $('s-call').classList.remove('on');
+  if (msg) toast(msg);
+}
+$('btn-end').onclick = () => { if (call) { if (call.role === 'caller' && !call.connected) missedCall(call.peer, call.video); sendSignal(call.peer.id, 'hangup'); endCall('call ended'); } };
+$('btn-mute').onclick = () => {
+  if (!call) return;
+  const t = call.stream.getAudioTracks()[0]; if (!t) return;
+  t.enabled = !t.enabled;
+  $('btn-mute').classList.toggle('off', !t.enabled); $('btn-mute').textContent = t.enabled ? '🎤' : '🔇';
+};
+$('btn-cam').onclick = () => {
+  if (!call) return;
+  const t = call.stream.getVideoTracks()[0]; if (!t) return;
+  t.enabled = !t.enabled;
+  $('btn-cam').classList.toggle('off', !t.enabled); $('btn-cam').textContent = t.enabled ? '📷' : '🚫';
+};
+
+// ---------- start ----------
+async function start(){
+  const { data } = await sb.auth.getSession();
+  if (data && data.session) await loadMe(data.session.user); else show('auth');
+}
+(function init(){
+  if (!SUPABASE_URL.startsWith('https://') || SUPABASE_KEY.length < 20) {
+    show('auth'); $('auth-err').textContent = 'App not set up yet: add the Supabase URL and key at the top of the code.'; return;
+  }
+  connect(SUPABASE_URL, SUPABASE_KEY);
+  start();
+})();
+</script>
+</body>
+</html>
